@@ -79,13 +79,16 @@ export class CreditCalculatorComponent {
     pricePaid: number = 0, 
     actualServiceStartDate: string = ''
   ) {
+    // Get the last service to use as defaults
+    const lastService = this.services().length > 0 ? this.services()[this.services().length - 1] : null;
+    
     const newService: ServiceItem = {
       id: this.nextServiceId(),
-      serviceName,
-      invoiceStartDate,
-      invoiceEndDate,
-      pricePaid,
-      actualServiceStartDate
+      serviceName: serviceName || '',
+      invoiceStartDate: invoiceStartDate || (lastService?.invoiceStartDate || ''),
+      invoiceEndDate: invoiceEndDate || (lastService?.invoiceEndDate || ''),
+      pricePaid: pricePaid || (lastService?.pricePaid || 0),
+      actualServiceStartDate: actualServiceStartDate || (lastService?.actualServiceStartDate || '')
     };
     
     this.services.update(services => [...services, newService]);
