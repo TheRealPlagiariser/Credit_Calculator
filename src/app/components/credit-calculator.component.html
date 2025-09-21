@@ -6,62 +6,11 @@
   </div>
 
   <div class="calculator-container">
-    <!-- Invoice Information Section -->
+    <!-- Tax Rate Section -->
     <div class="section">
-      <h2>Invoice Information</h2>
+      <h2>Tax Settings</h2>
       
       <div class="form-grid">
-        <div class="form-group">
-          <label for="invoiceStartDate">Invoice Start Date</label>
-          <input 
-            type="date" 
-            id="invoiceStartDate"
-            [(ngModel)]="invoiceStartDate"
-            class="form-control"
-            required>
-        </div>
-        
-        <div class="form-group">
-          <label for="invoiceEndDate">Invoice End Date</label>
-          <input 
-            type="date" 
-            id="invoiceEndDate"
-            [(ngModel)]="invoiceEndDate"
-            class="form-control"
-            required>
-        </div>
-        
-        <div class="form-group">
-          <label for="pricePaid">Amount Customer Paid</label>
-          <input 
-            type="number" 
-            id="pricePaid"
-            [(ngModel)]="pricePaid"
-            step="0.01"
-            min="0"
-            placeholder="0.00"
-            class="form-control"
-            required>
-        </div>
-      </div>
-    </div>
-
-    <!-- Service Information Section -->
-    <div class="section">
-      <h2>Service Information</h2>
-      
-      <div class="form-grid">
-        <div class="form-group">
-          <label for="actualServiceStartDate">Actual Service Start Date</label>
-          <input 
-            type="date" 
-            id="actualServiceStartDate"
-            [(ngModel)]="actualServiceStartDate"
-            class="form-control"
-            required>
-          <small class="form-text">When did the customer actually start receiving service?</small>
-        </div>
-        
         <div class="form-group">
           <label for="taxRate">Tax Rate (%)</label>
           <input 
@@ -72,6 +21,99 @@
             min="0"
             max="100"
             class="form-control">
+        </div>
+      </div>
+    </div>
+
+    <!-- Services Section -->
+    <div class="section">
+      <div class="section-header">
+        <h2>Services</h2>
+        <button 
+          type="button" 
+          (click)="addService('', '', '', 0, '')"
+          class="btn btn-primary btn-small">
+          Add Service
+        </button>
+      </div>
+      
+      <div *ngIf="services().length === 0" class="no-services">
+        <p>No services added. Click "Add Service" to begin.</p>
+      </div>
+      
+      <div *ngFor="let service of services(); let i = index; trackBy: trackByServiceId" class="service-item">
+        <div class="service-header">
+          <h3>Service {{ i + 1 }}</h3>
+          <button 
+            type="button" 
+            (click)="removeService(service.id)"
+            class="btn btn-danger btn-small"
+            [disabled]="services().length === 1">
+            Remove
+          </button>
+        </div>
+        
+        <div class="form-grid">
+          <div class="form-group">
+            <label [for]="'serviceName' + service.id">Service Name</label>
+            <input 
+              type="text" 
+              [id]="'serviceName' + service.id"
+              [value]="service.serviceName"
+              (blur)="updateService(service.id, 'serviceName', $any($event.target).value)"
+              (keyup)="updateService(service.id, 'serviceName', $any($event.target).value)"
+              placeholder="e.g., Internet Service"
+              class="form-control"
+              required>
+          </div>
+          
+          <div class="form-group">
+            <label [for]="'invoiceStartDate' + service.id">Invoice Start Date</label>
+            <input 
+              type="date" 
+              [id]="'invoiceStartDate' + service.id"
+              [value]="service.invoiceStartDate"
+              (input)="updateService(service.id, 'invoiceStartDate', $any($event.target).value)"
+              class="form-control"
+              required>
+          </div>
+          
+          <div class="form-group">
+            <label [for]="'invoiceEndDate' + service.id">Invoice End Date</label>
+            <input 
+              type="date" 
+              [id]="'invoiceEndDate' + service.id"
+              [value]="service.invoiceEndDate"
+              (input)="updateService(service.id, 'invoiceEndDate', $any($event.target).value)"
+              class="form-control"
+              required>
+          </div>
+          
+          <div class="form-group">
+            <label [for]="'pricePaid' + service.id">Amount Customer Paid</label>
+            <input 
+              type="number" 
+              [id]="'pricePaid' + service.id"
+              [value]="service.pricePaid"
+              (input)="updateService(service.id, 'pricePaid', +$any($event.target).value || 0)"
+              step="0.01"
+              min="0"
+              placeholder="0.00"
+              class="form-control"
+              required>
+          </div>
+          
+          <div class="form-group">
+            <label [for]="'actualServiceStartDate' + service.id">Actual Service Start Date</label>
+            <input 
+              type="date" 
+              [id]="'actualServiceStartDate' + service.id"
+              [value]="service.actualServiceStartDate"
+              (input)="updateService(service.id, 'actualServiceStartDate', $any($event.target).value)"
+              class="form-control"
+              required>
+            <small class="form-text">When did the customer actually start receiving this service?</small>
+          </div>
         </div>
       </div>
     </div>
@@ -108,67 +150,87 @@
         <div class="result-summary">
           <div class="summary-card">
             <h3>Total Credit Amount</h3>
-            <div class="amount-large">{{ formatCurrency(calculationResult()!.totalCreditWithTax) }}</div>
+            <div class="amount-large">{{ formatCurrency(calculationResult()!.grandTotalWithTax) }}</div>
             <div class="amount-breakdown">
-              <div>Credit: {{ formatCurrency(calculationResult()!.creditAmount) }}</div>
-              <div>Tax: {{ formatCurrency(calculationResult()!.taxOnCredit) }}</div>
+              <div>Credit: {{ formatCurrency(calculationResult()!.totalCreditAmount) }}</div>
+              <div>Tax: {{ formatCurrency(calculationResult()!.totalTaxOnCredit) }}</div>
             </div>
           </div>
         </div>
 
-        <!-- Detailed Breakdown -->
+        <!-- Individual Service Results -->
         <div class="detailed-results">
-          <h3>Calculation Breakdown</h3>
+          <h3>Individual Service Credits</h3>
           
-          <div class="calc-details">
-            <div class="calc-row">
-              <span class="label">Invoice Period:</span>
-              <span class="value">{{ formatDate(invoiceStartDate()) }} to {{ formatDate(invoiceEndDate()) }}</span>
-            </div>
+          <div *ngFor="let service of calculationResult()!.services; let i = index" class="service-result">
+            <h4>{{ service.serviceName }}</h4>
             
-            <div class="calc-row">
-              <span class="label">Total Billing Days:</span>
-              <span class="value">{{ calculationResult()!.totalBillingDays }} days</span>
+            <div class="calc-details">
+              <div class="calc-row">
+                <span class="label">Invoice Period:</span>
+                <span class="value">{{ formatDate(getServiceById(service.id)?.invoiceStartDate || '') }} to {{ formatDate(getServiceById(service.id)?.invoiceEndDate || '') }}</span>
+              </div>
+              
+              <div class="calc-row">
+                <span class="label">Total Billing Days:</span>
+                <span class="value">{{ service.totalBillingDays }} days</span>
+              </div>
+              
+              <div class="calc-row">
+                <span class="label">Days Without Service:</span>
+                <span class="value">{{ service.daysWithoutService }} days</span>
+              </div>
+              
+              <div class="calc-row">
+                <span class="label">Amount Paid:</span>
+                <span class="value">{{ formatCurrency(getServiceById(service.id)?.pricePaid || 0) }}</span>
+              </div>
+              
+              <div class="calc-row">
+                <span class="label">Daily Rate:</span>
+                <span class="value">{{ formatCurrency(service.dailyRate) }}</span>
+              </div>
+              
+              <div class="calc-row highlight">
+                <span class="label">Credit Amount:</span>
+                <span class="value">{{ formatCurrency(service.creditAmount) }}</span>
+              </div>
+              
+              <div class="calc-row">
+                <span class="label">Tax on Credit:</span>
+                <span class="value">{{ formatCurrency(service.taxOnCredit) }}</span>
+              </div>
+              
+              <div class="calc-row total">
+                <span class="label">Total Credit with Tax:</span>
+                <span class="value">{{ formatCurrency(service.totalCreditWithTax) }}</span>
+              </div>
             </div>
-            
-            <div class="calc-row">
-              <span class="label">Service Actually Started:</span>
-              <span class="value">{{ formatDate(actualServiceStartDate()) }}</span>
-            </div>
-            
-            <div class="calc-row">
-              <span class="label">Days Without Service:</span>
-              <span class="value">{{ calculationResult()!.daysWithoutService }} days</span>
-            </div>
-            
-            <div class="calc-row">
-              <span class="label">Amount Paid:</span>
-              <span class="value">{{ formatCurrency(pricePaid()) }}</span>
-            </div>
-            
-            <div class="calc-row">
-              <span class="label">Daily Rate:</span>
-              <span class="value">{{ formatCurrency(calculationResult()!.dailyRate) }}</span>
-            </div>
-            
-            <div class="calc-row highlight">
-              <span class="label">Credit Amount:</span>
-              <span class="value">{{ formatCurrency(calculationResult()!.creditAmount) }}</span>
-            </div>
-            
-            <div class="calc-row">
-              <span class="label">Tax Rate:</span>
-              <span class="value">{{ taxRate() }}%</span>
-            </div>
-            
-            <div class="calc-row">
-              <span class="label">Tax on Credit:</span>
-              <span class="value">{{ formatCurrency(calculationResult()!.taxOnCredit) }}</span>
-            </div>
-            
-            <div class="calc-row total">
-              <span class="label">Total Credit with Tax:</span>
-              <span class="value">{{ formatCurrency(calculationResult()!.totalCreditWithTax) }}</span>
+          </div>
+          
+          <!-- Combined Totals -->
+          <div class="combined-totals" *ngIf="calculationResult()!.services.length > 1">
+            <h4>Combined Totals</h4>
+            <div class="calc-details">
+              <div class="calc-row">
+                <span class="label">Tax Rate:</span>
+                <span class="value">{{ taxRate() }}%</span>
+              </div>
+              
+              <div class="calc-row highlight">
+                <span class="label">Total Credit Amount:</span>
+                <span class="value">{{ formatCurrency(calculationResult()!.totalCreditAmount) }}</span>
+              </div>
+              
+              <div class="calc-row">
+                <span class="label">Total Tax on Credits:</span>
+                <span class="value">{{ formatCurrency(calculationResult()!.totalTaxOnCredit) }}</span>
+              </div>
+              
+              <div class="calc-row total">
+                <span class="label">Grand Total with Tax:</span>
+                <span class="value">{{ formatCurrency(calculationResult()!.grandTotalWithTax) }}</span>
+              </div>
             </div>
           </div>
         </div>

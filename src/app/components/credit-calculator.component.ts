@@ -2,13 +2,31 @@ import { Component, signal, computed } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { CommonModule } from '@angular/common';
 
+interface ServiceItem {
+  id: number;
+  serviceName: string;
+  invoiceStartDate: string;
+  invoiceEndDate: string;
+  pricePaid: number;
+  actualServiceStartDate: string;
+}
+
 interface CreditCalculation {
+  id: number;
+  serviceName: string;
   totalBillingDays: number;
   daysWithoutService: number;
   dailyRate: number;
   creditAmount: number;
   taxOnCredit: number;
   totalCreditWithTax: number;
+}
+
+interface CombinedCreditResult {
+  services: CreditCalculation[];
+  totalCreditAmount: number;
+  totalTaxOnCredit: number;
+  grandTotalWithTax: number;
 }
 
 @Component({
@@ -20,15 +38,15 @@ interface CreditCalculation {
 })
 export class CreditCalculatorComponent {
   // Form data signals
-  invoiceStartDate = signal('');
-  invoiceEndDate = signal('');
-  pricePaid = signal(0);
-  actualServiceStartDate = signal('');
   taxRate = signal(13.0);
+  
+  // Services array
+  services = signal<ServiceItem[]>([]);
+  nextServiceId = signal(1);
   
   // Calculation results
   isCalculating = signal(false);
-  calculationResult = signal<CreditCalculation | null>(null);
+  calculationResult = signal<CombinedCreditResult | null>(null);
 
   constructor() {
     // Load sample data for testing
@@ -36,71 +54,149 @@ export class CreditCalculatorComponent {
   }
 
   loadSampleData() {
-    // Set sample dates - invoice period vs actual service start
+    // Set sample dates - different invoice periods for demonstration
     const today = new Date();
-    const invoiceStart = new Date(today.getFullYear(), today.getMonth(), 1); // First of month
-    const invoiceEnd = new Date(today.getFullYear(), today.getMonth() + 1, 0); // Last of month
-    const serviceStart = new Date(today.getFullYear(), today.getMonth(), 10); // Service started 10th
+    
+    // Service 1: Monthly internet service
+    const invoiceStart1 = new Date(today.getFullYear(), today.getMonth(), 1); // First of current month
+    const invoiceEnd1 = new Date(today.getFullYear(), today.getMonth() + 1, 0); // Last of current month
+    const serviceStart1 = new Date(today.getFullYear(), today.getMonth(), 10); // Service started 10th
 
-    this.invoiceStartDate.set(invoiceStart.toISOString().split('T')[0]);
-    this.invoiceEndDate.set(invoiceEnd.toISOString().split('T')[0]);
-    this.actualServiceStartDate.set(serviceStart.toISOString().split('T')[0]);
-    this.pricePaid.set(79.99);
+    // Add a sample service showing monthly billing
+    this.addService(
+      'Internet Service', 
+      invoiceStart1.toISOString().split('T')[0],
+      invoiceEnd1.toISOString().split('T')[0],
+      79.99, 
+      serviceStart1.toISOString().split('T')[0]
+    );
+  }
+
+  addService(
+    serviceName: string = '', 
+    invoiceStartDate: string = '',
+    invoiceEndDate: string = '',
+    pricePaid: number = 0, 
+    actualServiceStartDate: string = ''
+  ) {
+    const newService: ServiceItem = {
+      id: this.nextServiceId(),
+      serviceName,
+      invoiceStartDate,
+      invoiceEndDate,
+      pricePaid,
+      actualServiceStartDate
+    };
+    
+    this.services.update(services => [...services, newService]);
+    this.nextServiceId.update(id => id + 1);
+  }
+
+  removeService(serviceId: number) {
+    this.services.update(services => services.filter(s => s.id !== serviceId));
+  }
+
+  updateService(serviceId: number, field: keyof ServiceItem, value: any) {
+    const currentServices = this.services();
+    const updatedServices = currentServices.map(service => 
+      service.id === serviceId ? { ...service, [field]: value } : service
+    );
+    this.services.set(updatedServices);
+  }
+
+  // TrackBy function to prevent unnecessary re-rendering
+  trackByServiceId(index: number, service: ServiceItem): number {
+    return service.id;
   }
 
   calculateCredit() {
-    if (!this.invoiceStartDate() || !this.invoiceEndDate() || !this.actualServiceStartDate() || this.pricePaid() <= 0) {
-      alert('Please fill in all required fields.');
+    if (this.services().length === 0) {
+      alert('Please add at least one service to calculate credits.');
       return;
     }
 
-    const invoiceStart = new Date(this.invoiceStartDate());
-    const invoiceEnd = new Date(this.invoiceEndDate());
-    const serviceStart = new Date(this.actualServiceStartDate());
+    // Validate that all services have required data
+    for (const service of this.services()) {
+      if (!service.serviceName || !service.invoiceStartDate || !service.invoiceEndDate || 
+          !service.actualServiceStartDate || service.pricePaid <= 0) {
+        alert(`Please fill in all fields for service: ${service.serviceName || 'Unnamed Service'}`);
+        return;
+      }
 
-    // Validate dates
-    if (invoiceStart >= invoiceEnd) {
-      alert('Invoice end date must be after start date.');
-      return;
-    }
+      const invoiceStart = new Date(service.invoiceStartDate);
+      const invoiceEnd = new Date(service.invoiceEndDate);
 
-    if (serviceStart < invoiceStart) {
-      alert('Service start date cannot be before invoice start date.');
-      return;
-    }
-
-    if (serviceStart > invoiceEnd) {
-      alert('Service start date cannot be after invoice end date.');
-      return;
+      // Validate dates for this service
+      if (invoiceStart >= invoiceEnd) {
+        alert(`Invoice end date must be after start date for service: ${service.serviceName}`);
+        return;
+      }
     }
 
     this.isCalculating.set(true);
 
-    // Calculate total billing period days
-    const totalBillingDays = this.calculateDaysBetween(invoiceStart, invoiceEnd);
+    const serviceCalculations: CreditCalculation[] = [];
+    let totalCreditAmount = 0;
+    let totalTaxOnCredit = 0;
 
-    // Calculate days without service (from invoice start to actual service start)
-    const daysWithoutService = this.calculateDaysBetween(invoiceStart, serviceStart) - 1; // -1 because service started on the service start date
+    // Calculate credit for each service
+    for (const service of this.services()) {
+      const invoiceStart = new Date(service.invoiceStartDate);
+      const invoiceEnd = new Date(service.invoiceEndDate);
+      const serviceStart = new Date(service.actualServiceStartDate);
 
-    // Calculate daily rate
-    const dailyRate = this.pricePaid() / totalBillingDays;
+      // Validate service start date against this service's invoice period
+      if (serviceStart < invoiceStart) {
+        alert(`Service start date for ${service.serviceName} cannot be before its invoice start date.`);
+        this.isCalculating.set(false);
+        return;
+      }
 
-    // Calculate credit amount for days without service
-    const creditAmount = dailyRate * Math.max(0, daysWithoutService);
+      if (serviceStart > invoiceEnd) {
+        alert(`Service start date for ${service.serviceName} cannot be after its invoice end date.`);
+        this.isCalculating.set(false);
+        return;
+      }
 
-    // Calculate tax on credit
-    const taxOnCredit = creditAmount * (this.taxRate() / 100);
+      // Calculate total billing period days for this service
+      const totalBillingDays = this.calculateDaysBetween(invoiceStart, invoiceEnd);
 
-    // Total credit with tax
-    const totalCreditWithTax = creditAmount + taxOnCredit;
+      // Calculate days without service (from invoice start to actual service start)
+      const daysWithoutService = this.calculateDaysBetween(invoiceStart, serviceStart) - 1; // -1 because service started on the service start date
 
-    const result: CreditCalculation = {
-      totalBillingDays,
-      daysWithoutService: Math.max(0, daysWithoutService),
-      dailyRate,
-      creditAmount,
-      taxOnCredit,
-      totalCreditWithTax
+      // Calculate daily rate
+      const dailyRate = service.pricePaid / totalBillingDays;
+
+      // Calculate credit amount for days without service
+      const creditAmount = dailyRate * Math.max(0, daysWithoutService);
+
+      // Calculate tax on credit
+      const taxOnCredit = creditAmount * (this.taxRate() / 100);
+
+      // Total credit with tax for this service
+      const totalCreditWithTax = creditAmount + taxOnCredit;
+
+      const serviceCalculation: CreditCalculation = {
+        id: service.id,
+        serviceName: service.serviceName,
+        totalBillingDays,
+        daysWithoutService: Math.max(0, daysWithoutService),
+        dailyRate,
+        creditAmount,
+        taxOnCredit,
+        totalCreditWithTax
+      };
+
+      serviceCalculations.push(serviceCalculation);
+      totalCreditAmount += creditAmount;
+      totalTaxOnCredit += taxOnCredit;
+    }
+
+    const result: CombinedCreditResult = {
+      services: serviceCalculations,
+      totalCreditAmount,
+      totalTaxOnCredit,
+      grandTotalWithTax: totalCreditAmount + totalTaxOnCredit
     };
 
     this.calculationResult.set(result);
@@ -127,5 +223,14 @@ export class CreditCalculatorComponent {
 
   formatDate(dateString: string): string {
     return new Date(dateString).toLocaleDateString();
+  }
+
+  // Helper method for template
+  parseFloat(value: string): number {
+    return parseFloat(value) || 0;
+  }
+
+  getServiceById(id: number): ServiceItem | undefined {
+    return this.services().find(s => s.id === id);
   }
 }
