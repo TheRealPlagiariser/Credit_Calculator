@@ -24,7 +24,7 @@ export class CreditCalculatorComponent {
   invoiceEndDate = signal('');
   pricePaid = signal(0);
   actualServiceStartDate = signal('');
-  taxRate = signal(8.5);
+  taxRate = signal(13.0);
   
   // Calculation results
   isCalculating = signal(false);

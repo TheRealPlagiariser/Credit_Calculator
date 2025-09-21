@@ -216,7 +216,7 @@ export class CreditCalculationService {
         }
       ],
       subtotal: 94.99,
-      taxRate: 8.5,
+      taxRate: 13.0,
       taxAmount: 8.07,
       total: 103.06
     };
