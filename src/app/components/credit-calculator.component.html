@@ -1,0 +1,178 @@
+<div class="credit-calculator">
+  <div class="header">
+    <h1>Service Credit Calculator</h1>
+    <p>Calculate credit for days without service based on invoice billing period</p>
+    <div class="credit-line">Developed by Shujaat K. Umarkhan</div>
+  </div>
+
+  <div class="calculator-container">
+    <!-- Invoice Information Section -->
+    <div class="section">
+      <h2>Invoice Information</h2>
+      
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="invoiceStartDate">Invoice Start Date</label>
+          <input 
+            type="date" 
+            id="invoiceStartDate"
+            [(ngModel)]="invoiceStartDate"
+            class="form-control"
+            required>
+        </div>
+        
+        <div class="form-group">
+          <label for="invoiceEndDate">Invoice End Date</label>
+          <input 
+            type="date" 
+            id="invoiceEndDate"
+            [(ngModel)]="invoiceEndDate"
+            class="form-control"
+            required>
+        </div>
+        
+        <div class="form-group">
+          <label for="pricePaid">Amount Customer Paid</label>
+          <input 
+            type="number" 
+            id="pricePaid"
+            [(ngModel)]="pricePaid"
+            step="0.01"
+            min="0"
+            placeholder="0.00"
+            class="form-control"
+            required>
+        </div>
+      </div>
+    </div>
+
+    <!-- Service Information Section -->
+    <div class="section">
+      <h2>Service Information</h2>
+      
+      <div class="form-grid">
+        <div class="form-group">
+          <label for="actualServiceStartDate">Actual Service Start Date</label>
+          <input 
+            type="date" 
+            id="actualServiceStartDate"
+            [(ngModel)]="actualServiceStartDate"
+            class="form-control"
+            required>
+          <small class="form-text">When did the customer actually start receiving service?</small>
+        </div>
+        
+        <div class="form-group">
+          <label for="taxRate">Tax Rate (%)</label>
+          <input 
+            type="number" 
+            id="taxRate"
+            [(ngModel)]="taxRate"
+            step="0.1"
+            min="0"
+            max="100"
+            class="form-control">
+        </div>
+      </div>
+    </div>
+
+    <!-- Calculation Section -->
+    <div class="section">
+      <h2>Calculate Credit</h2>
+      
+      <div class="action-buttons">
+        <button 
+          type="button" 
+          (click)="calculateCredit()"
+          [disabled]="isCalculating()"
+          class="btn btn-primary btn-large">
+          <span *ngIf="isCalculating()">Calculating...</span>
+          <span *ngIf="!isCalculating()">Calculate Credit Amount</span>
+        </button>
+        
+        <button 
+          type="button" 
+          (click)="clearCalculation()"
+          class="btn btn-secondary">
+          Clear Results
+        </button>
+      </div>
+    </div>
+
+    <!-- Results Section -->
+    <div class="section results-section" *ngIf="calculationResult()">
+      <h2>Credit Calculation Results</h2>
+      
+      <div class="results-container">
+        <!-- Summary Card -->
+        <div class="result-summary">
+          <div class="summary-card">
+            <h3>Total Credit Amount</h3>
+            <div class="amount-large">{{ formatCurrency(calculationResult()!.totalCreditWithTax) }}</div>
+            <div class="amount-breakdown">
+              <div>Credit: {{ formatCurrency(calculationResult()!.creditAmount) }}</div>
+              <div>Tax: {{ formatCurrency(calculationResult()!.taxOnCredit) }}</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Detailed Breakdown -->
+        <div class="detailed-results">
+          <h3>Calculation Breakdown</h3>
+          
+          <div class="calc-details">
+            <div class="calc-row">
+              <span class="label">Invoice Period:</span>
+              <span class="value">{{ formatDate(invoiceStartDate()) }} to {{ formatDate(invoiceEndDate()) }}</span>
+            </div>
+            
+            <div class="calc-row">
+              <span class="label">Total Billing Days:</span>
+              <span class="value">{{ calculationResult()!.totalBillingDays }} days</span>
+            </div>
+            
+            <div class="calc-row">
+              <span class="label">Service Actually Started:</span>
+              <span class="value">{{ formatDate(actualServiceStartDate()) }}</span>
+            </div>
+            
+            <div class="calc-row">
+              <span class="label">Days Without Service:</span>
+              <span class="value">{{ calculationResult()!.daysWithoutService }} days</span>
+            </div>
+            
+            <div class="calc-row">
+              <span class="label">Amount Paid:</span>
+              <span class="value">{{ formatCurrency(pricePaid()) }}</span>
+            </div>
+            
+            <div class="calc-row">
+              <span class="label">Daily Rate:</span>
+              <span class="value">{{ formatCurrency(calculationResult()!.dailyRate) }}</span>
+            </div>
+            
+            <div class="calc-row highlight">
+              <span class="label">Credit Amount:</span>
+              <span class="value">{{ formatCurrency(calculationResult()!.creditAmount) }}</span>
+            </div>
+            
+            <div class="calc-row">
+              <span class="label">Tax Rate:</span>
+              <span class="value">{{ taxRate() }}%</span>
+            </div>
+            
+            <div class="calc-row">
+              <span class="label">Tax on Credit:</span>
+              <span class="value">{{ formatCurrency(calculationResult()!.taxOnCredit) }}</span>
+            </div>
+            
+            <div class="calc-row total">
+              <span class="label">Total Credit with Tax:</span>
+              <span class="value">{{ formatCurrency(calculationResult()!.totalCreditWithTax) }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
